@@ -14,13 +14,38 @@ namespace Number_Recognition
     {
         Byte_File file;
         Machine numbers;
+
+        byte[][] bit_xor_input = new byte[4][];
+        byte[] bit_xor_output = new byte[] { 0, 1, 1, 0 };
+
+        public void init_data()
+        {
+            bit_xor_input[0] = new byte[2] { 0, 0 };
+            bit_xor_input[1] = new byte[2] { 0, 1 };
+            bit_xor_input[2] = new byte[2] { 1, 0 };
+            bit_xor_input[3] = new byte[2] { 1, 1 };
+        }
+
+        public double[][] init_res_array(byte[] arr)
+        {
+            double[][] res = new double[arr.Length][];
+
+            for(int i = 0; i < arr.Length; i++)
+            {
+                res[i] = new double[1];
+                res[i][0] = (double)arr[i];
+            }
+
+            return res; 
+        }
         public Form1()
         {
             InitializeComponent();
+            init_data();
             file = new Byte_File("data\\train-images.idx3-ubyte", "data\\train-labels.idx1-ubyte");
-            numbers = new Machine(file.labelSet, file.dataset);
-            numbers.add_layer(784, 16);
-            numbers.add_layer(16, 10);
+            numbers = new Machine(bit_xor_output, init_res_array, bit_xor_input, 1, normalizing_value: 1);
+            numbers.add_layer(2, 2, Machine.Layer.SQAUSH_FUNC.TANH);
+            numbers.add_layer(2, 1, Machine.Layer.SQAUSH_FUNC.TANH);
             numbers.train(1);
 
         }
