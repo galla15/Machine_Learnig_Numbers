@@ -64,14 +64,18 @@ namespace Number_Recognition
                     //
                     Vector<double> network_out;
 
-                    network_out = foward_propagate(data);
+                    network_out = foward_propagate(data, 0);
 
-                    cost_values[(int)j] = (result - network_out).Map(elem => Math.Pow(elem, 2)).Sum();
+                    backPropagate(2 * (result - network_out), neural_net_layers_list.Count - 1);
 
-                    
+                   // cost_values[(int)j] = (result - network_out).Map(elem => Math.Pow(elem, 2)).Sum();
+                    Console.WriteLine("Net out : " + network_out.ToString() + "expected out : " + result.ToString());
                 }
 
-                Console.WriteLine(cost_values);
+                updateWeights(data_length - 1, this.learn_rate);
+
+                
+                //Console.WriteLine(cost_values);
             }
         }
 
@@ -80,29 +84,46 @@ namespace Number_Recognition
             neural_net_layers_list.Add(new Layer(in_size, out_size, func, (uint)neural_net_layers_list.Count));
         }
 
-        private static int layer_num = 0;
-        private Vector<double> res;
-        private Vector<double> foward_propagate(Vector<double> start_data)
+        
+        private Vector<double> foward_propagate(Vector<double> start_data, int iter)
         {
-            if(layer_num < neural_net_layers_list.Count)
+            int layer_num = iter;
+            Vector<double> res;
+
+            if (layer_num < neural_net_layers_list.Count)
             {
                 Layer l = neural_net_layers_list.Find(x => x.layer_index == layer_num);
                 layer_num++;
                 res = l.propagate(start_data);
-                foward_propagate(res);
+                return foward_propagate(res, layer_num);
             }
-
+            else res = start_data;
+            
             return res;
         }
 
-        private void backPropagate(Vector<double> expeted)
+        private void backPropagate(Vector<double> error_derivative, int iter)
         {
-           for(int i = neural_net_layers_list.Count; i > 0; --i)
-           {
-                Layer l = neural_net_layers_list.Find(x => x.layer_index == i);
+            int layer_num = iter;
+            Vector<double> res;
 
-                //l.global_error(l.activations_L, expeted, l.activations_Lminus1, )
-           }
+            if(layer_num > -1)
+            {
+                Layer l = neural_net_layers_list.Find(x => x.layer_index == layer_num);
+                layer_num--;
+                res = l.backPropagate(error_derivative);
+                backPropagate(res, layer_num);
+            }
+
+        }
+
+        private void updateWeights(double data_length, double learning_rate)
+        {
+            for(int i = 0; i < neural_net_layers_list.Count; i++)
+            {
+                Layer l = neural_net_layers_list.Find(x => x.layer_index == i);
+                l.update_weights(data_length, learning_rate);
+            }
         }
 
         public class Layer
@@ -111,10 +132,13 @@ namespace Number_Recognition
             SQAUSH_FUNC func;
             public uint layer_index;
 
+            public Matrix<double> weights_errors { get; private set; }
             private Matrix<double> weights;
             public Vector<double> activations_L { get; private set; }
             public Vector<double> activations_Lminus1 { get; private set; }
+
             private Vector<double> bias;
+            private Vector<double> bias_errors;
 
             public int out_size;
 
@@ -162,8 +186,11 @@ namespace Number_Recognition
 
                 activations_L = DenseVector.Create(output_size, 0);
                 activations_Lminus1 = DenseVector.Create(inputs_size, 0);
+
                 weights = DenseMatrix.Build.Dense(output_size, inputs_size, (i, j) => 0);
+                weights_errors = DenseMatrix.Create(weights.RowCount, weights.ColumnCount, 0);
                 bias = DenseVector.Build.Dense(output_size, (i) => 0);
+                bias_errors = DenseVector.Create(bias.Count, 0);
 
                 out_size = output_size;
             }
@@ -179,9 +206,34 @@ namespace Number_Recognition
                 return activations_L;
             }
 
-            public void backPropagate()
+            public Vector<double> backPropagate(Vector<double> error_derivative)
             {
-               
+                Vector<double> global_error = DenseVector.Create(error_derivative.Count, 0);
+
+                for(int k = 0; k < weights_errors.RowCount; k++)
+                {
+                    global_error[k] = error_derivative[k] * derivative_squash(activations_L[k]);
+                    
+                    for (int j = 0; j < weights_errors.ColumnCount; j++)
+                    {
+                            weights_errors[k,j] += global_error[k] * activations_Lminus1[k];
+                    }
+                }
+
+                bias_errors += global_error;
+
+                return  global_error * weights;
+             
+            }
+
+            public void update_weights(double no_of_data, double learning_rate)
+            {
+                bias += bias_errors.Map(i => i / no_of_data * learning_rate);
+                bias_errors = bias_errors.Map(i => 0.0);
+
+                weights += weights_errors.Map(i => i / no_of_data * learning_rate);
+                weights_errors = weights_errors.Map(i => 0.0);
+
             }
         }
     }

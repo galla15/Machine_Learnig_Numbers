@@ -46,7 +46,7 @@ namespace Number_Recognition
             numbers = new Machine(bit_xor_output, init_res_array, bit_xor_input, 1, normalizing_value: 1);
             numbers.add_layer(2, 2, Machine.Layer.SQAUSH_FUNC.TANH);
             numbers.add_layer(2, 1, Machine.Layer.SQAUSH_FUNC.TANH);
-            numbers.train(1);
+            numbers.train(2000);
 
         }
 
