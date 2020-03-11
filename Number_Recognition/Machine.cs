@@ -66,10 +66,14 @@ namespace Number_Recognition
 
                     network_out = foward_propagate(data, 0);
 
-                    backPropagate(2 * (result - network_out), neural_net_layers_list.Count - 1);
+                    cost_values[(int)j] = (result - network_out).Map(elem => Math.Pow(elem, 2)).Sum();
 
-                   // cost_values[(int)j] = (result - network_out).Map(elem => Math.Pow(elem, 2)).Sum();
-                    Console.WriteLine("Net out : " + network_out.ToString() + "expected out : " + result.ToString());
+                    backPropagate(result, neural_net_layers_list.Count - 1);
+
+                    Console.WriteLine("Iteration " + i.ToString() + ", data num " + j.ToString() + "\nNet in : \n" + data.ToVectorString() + "Net out : \n"
+                        + network_out.ToVectorString() + "expected out : \n" + result.ToVectorString() + "Error : " 
+                        + cost_values[(int)j].ToString() + "\n");
+                      
                 }
 
                 updateWeights(data_length - 1, this.learn_rate);
@@ -187,9 +191,9 @@ namespace Number_Recognition
                 activations_L = DenseVector.Create(output_size, 0);
                 activations_Lminus1 = DenseVector.Create(inputs_size, 0);
 
-                weights = DenseMatrix.Build.Dense(output_size, inputs_size, (i, j) => 0);
+                weights = DenseMatrix.Build.Dense(output_size, inputs_size, (i, j) => random.NextDouble());
                 weights_errors = DenseMatrix.Create(weights.RowCount, weights.ColumnCount, 0);
-                bias = DenseVector.Build.Dense(output_size, (i) => 0);
+                bias = DenseVector.Build.Dense(output_size, (i) => random.NextDouble());
                 bias_errors = DenseVector.Create(bias.Count, 0);
 
                 out_size = output_size;
@@ -206,23 +210,25 @@ namespace Number_Recognition
                 return activations_L;
             }
 
-            public Vector<double> backPropagate(Vector<double> error_derivative)
+            public Vector<double> backPropagate(Vector<double> expect)
             {
-                Vector<double> global_error = DenseVector.Create(error_derivative.Count, 0);
+                Vector<double> db = DenseVector.Create(expect.Count, 0);
+                Matrix<double> dw = DenseMatrix.Create(weights_errors.RowCount, weights_errors.ColumnCount, 0);
 
                 for(int k = 0; k < weights_errors.RowCount; k++)
                 {
-                    global_error[k] = error_derivative[k] * derivative_squash(activations_L[k]);
+                    db[k] = 2*(activations_L[k] - expect[k]) * derivative_squash(activations_L[k]);
                     
                     for (int j = 0; j < weights_errors.ColumnCount; j++)
                     {
-                            weights_errors[k,j] += global_error[k] * activations_Lminus1[k];
+                            dw[k,j] = db[k] * activations_Lminus1[k];
                     }
                 }
+                weights_errors += dw;
 
-                bias_errors += global_error;
+                bias_errors += db;
 
-                return  global_error * weights;
+                return  activations_Lminus1.Map(x => derivative_squash(x))*db;
              
             }
 

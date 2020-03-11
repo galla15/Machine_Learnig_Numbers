@@ -42,11 +42,11 @@ namespace Number_Recognition
         {
             InitializeComponent();
             init_data();
-            file = new Byte_File("data\\train-images.idx3-ubyte", "data\\train-labels.idx1-ubyte");
+            //file = new Byte_File("data\\train-images.idx3-ubyte", "data\\train-labels.idx1-ubyte");
             numbers = new Machine(bit_xor_output, init_res_array, bit_xor_input, 1, normalizing_value: 1);
             numbers.add_layer(2, 2, Machine.Layer.SQAUSH_FUNC.TANH);
             numbers.add_layer(2, 1, Machine.Layer.SQAUSH_FUNC.TANH);
-            numbers.train(2000);
+            numbers.train(1000);
 
         }
 
