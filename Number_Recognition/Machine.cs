@@ -66,9 +66,9 @@ namespace Number_Recognition
 
                     network_out = foward_propagate(data, 0);
 
-                    cost_values[(int)j] = (result - network_out).Map(elem => Math.Pow(elem, 2)).Sum();
+                    cost_values[(int)j] = (network_out- result).Map(elem => 0.5 *Math.Pow(elem, 2)).Sum();
 
-                    backPropagate(result, neural_net_layers_list.Count - 1);
+                    backPropagate(network_out - result, neural_net_layers_list.Count - 1);
 
                     Console.WriteLine("Iteration " + i.ToString() + ", data num " + j.ToString() + "\nNet in : \n" + data.ToVectorString() + "Net out : \n"
                         + network_out.ToVectorString() + "expected out : \n" + result.ToVectorString() + "Error : " 
@@ -106,17 +106,25 @@ namespace Number_Recognition
             return res;
         }
 
-        private void backPropagate(Vector<double> error_derivative, int iter)
+        private void backPropagate(Vector<double> error, int iter)
         {
-            int layer_num = iter;
+            /*int layer_num = iter;
             Vector<double> res;
 
             if(layer_num > -1)
             {
                 Layer l = neural_net_layers_list.Find(x => x.layer_index == layer_num);
                 layer_num--;
-                res = l.backPropagate(error_derivative);
-                backPropagate(res, layer_num);
+                res = l.backPropagate(error);
+                return backPropagate(res, layer_num);
+            }*/
+
+            Vector<double> err = error;
+
+            for(int i = neural_net_layers_list.Count - 1; i > -1; i--)
+            {
+                Layer l = neural_net_layers_list.Find(x => x.layer_index == i);
+                err = l.backPropagate(err);
             }
 
         }
@@ -206,29 +214,33 @@ namespace Number_Recognition
                 activations_L = weights * activations_Lminus1 + bias;
 
                 //squash all the elements of the resulating vector
-                activations_L.Map((i) => squash((i)), activations_L, Zeros.AllowSkip);
+                activations_L.Map((i) => squash((i)), activations_L, Zeros.Include);
                 return activations_L;
             }
 
-            public Vector<double> backPropagate(Vector<double> expect)
+            public Vector<double> backPropagate(Vector<double> error)
             {
-                Vector<double> db = DenseVector.Create(expect.Count, 0);
+                Vector<double> db = DenseVector.Create(error.Count, 0);
                 Matrix<double> dw = DenseMatrix.Create(weights_errors.RowCount, weights_errors.ColumnCount, 0);
+
 
                 for(int k = 0; k < weights_errors.RowCount; k++)
                 {
-                    db[k] = 2*(activations_L[k] - expect[k]) * derivative_squash(activations_L[k]);
+                    db[k] = error[k] * derivative_squash(activations_L[k]);
                     
                     for (int j = 0; j < weights_errors.ColumnCount; j++)
                     {
-                            dw[k,j] = db[k] * activations_Lminus1[k];
+                            dw[k,j] = db[k] * activations_Lminus1[j];
                     }
                 }
+
                 weights_errors += dw;
 
                 bias_errors += db;
 
-                return  activations_Lminus1.Map(x => derivative_squash(x))*db;
+                Vector<double> out_err = db * weights;
+
+                return out_err;
              
             }
 
