@@ -38,15 +38,34 @@ namespace Number_Recognition
 
             return res; 
         }
+
+        byte[][] input = new byte[2][];
+        
+        byte[] output = new byte[] { 1, 2 };
+
+        public void init()
+        {
+            input[0] = new byte[] { 0 };
+            input[1] = new byte[] { 1 };
+        }
+
+
+
         public Form1()
         {
             InitializeComponent();
-            init_data();
             //file = new Byte_File("data\\train-images.idx3-ubyte", "data\\train-labels.idx1-ubyte");
-            numbers = new Machine(bit_xor_output, init_res_array, bit_xor_input, 1, normalizing_value: 1);
-            numbers.add_layer(2, 2, Machine.Layer.SQAUSH_FUNC.SIGMOID);
-            numbers.add_layer(2, 1, Machine.Layer.SQAUSH_FUNC.SIGMOID);
-            numbers.train(2000);
+
+
+            init_data();
+            numbers = new Machine(bit_xor_output, bit_xor_input, 1, init_result_array: init_res_array, normalizing_value: 1, learning_rate:1);
+
+            //init();
+            //numbers = new Machine(output, input, 1, init_result_array: init_res_array, normalizing_value: 1);
+            //numbers.add_layer(2, 2, Machine.Squash_func.SQUASH_FUNC.SIGMOID);
+            numbers.add_layer(2, 2, Machine.Squash_func.SQUASH_FUNC.SIGMOID);
+            numbers.add_layer(2, 1, Machine.Squash_func.SQUASH_FUNC.SIGMOID);
+            numbers.train(5000);
 
         }
 
