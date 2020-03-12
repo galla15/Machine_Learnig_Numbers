@@ -70,6 +70,33 @@ namespace Number_Recognition
             file.Close();
         }
 
+        private double byte_to_double(byte val)
+        {
+            return (double)val;
+        }
+
+        public double[] get_labels()
+        {
+            return Array.ConvertAll(labelSet, new Converter<byte,double>(byte_to_double));
+        }
+
+        public double[][] get_data_set()
+        {
+            double[][] data = new double[dataset.Length][];
+
+            for(int i = 0; i < data.Length; i++)
+            {
+                data[i] = Array.ConvertAll(dataset[i], new Converter<byte, double>(byte_to_double));
+            }
+
+            return data;
+        }
+
+        public double[] getImage(int index)
+        {
+            return Array.ConvertAll(dataset[index], new Converter<byte, double>(byte_to_double));
+        }
+
         private void read_mnist_labels()
         {
             file = new FileStream(label_path, FileMode.Open, FileAccess.Read);

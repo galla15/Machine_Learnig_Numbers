@@ -35,6 +35,11 @@ namespace Number_Recognition
             return data_out;
         }
 
+        public double byte_to_double(byte val)
+        {
+            return (double)val;
+        }
+
         public Machine(byte[] labels, byte[][] values, uint result_size, Func<byte[], double[][]> init_result_array = null, double learning_rate = 0.01,
                         uint batch_size = 100, double normalizing_value = 255)
         {
@@ -42,7 +47,15 @@ namespace Number_Recognition
             learn_rate = learning_rate;
             this.batch_size = batch_size;
             this.result_size = result_size;
-            input_data = normalize(values, normalizing_value);
+            //input_data = normalize(values, normalizing_value);
+
+            input_data = new double[values.Length][];
+            for(int i = 0; i < values.Length; i++)
+            {
+                input_data[i] = new double[values[i].Length];
+                input_data[i] = Array.ConvertAll(values[i], new Converter<byte, double>(byte_to_double));
+            }
+            
             data_length = (uint)values.Length;
             if (init_result_array != null) output_data = init_result_array(labels);
         }
@@ -55,6 +68,9 @@ namespace Number_Recognition
         {
             double err = 0;
             uint iter = 0;
+
+            bool convergence = false;
+
             for(uint i = 0; i < iterations; i++ )
             {
                 double[] cost_values = new double[data_length];
@@ -74,6 +90,8 @@ namespace Number_Recognition
                     back_Propagate(result - network_out);
 
                     cost_values[j] = (result - network_out).Map(x => Math.Pow(x, 2) * 0.5).Sum() / result.Count;
+
+                    //Console.WriteLine(network_out.ToVectorString());
                       
                 }
                 err = 0;
@@ -86,14 +104,28 @@ namespace Number_Recognition
 
                 iter = i;
 
-                if (err < 0.1)
+                if (err < 0.05)
                 {
+                    convergence = true;
                     break;
                 }
 
             }
 
-            Console.WriteLine("Error : {0}, iterations : {1}", err, iter);
+            Console.WriteLine("Error : {0}, iterations : {1}", err, iter + 1);
+
+            if(!convergence)
+            {
+                reset_neuron_values();
+                train(iterations);
+            }
+        }
+
+        public Vector<double> run(double[] input)
+        {
+            Vector<double> data = DenseVector.Build.Dense(input);
+
+            return foward_propagate(data);
         }
 
         public void add_layer(int in_size, int out_size, Squash_func.SQUASH_FUNC func = Squash_func.SQUASH_FUNC.TANH)
@@ -101,6 +133,16 @@ namespace Number_Recognition
             neural_net_layers_list.Add(new Layer(in_size, out_size, func, (uint)neural_net_layers_list.Count, learn_rate: this.learn_rate));
         }
 
+        private void reset_neuron_values()
+        {
+            foreach(Layer l in neural_net_layers_list)
+            {
+                foreach(Neuron n in l.neurons)
+                {
+                    n.reset_value();
+                }
+            }
+        }
         
         private Vector<double> foward_propagate(Vector<double> start_data)
         {
@@ -109,7 +151,7 @@ namespace Number_Recognition
             for(int i = 0; i < neural_net_layers_list.Count; i++)
             {
                 Layer l = neural_net_layers_list.Find(x => x.layer_index == i);
-                res = l.propagate(start_data);
+                res = l.propagate(res);
             }
             
             return res;
@@ -130,7 +172,6 @@ namespace Number_Recognition
         public static class Squash_func
         {
             public enum SQUASH_FUNC { TANH, SIGMOID, RELU};
-
             public static double squash(SQUASH_FUNC func, double val)
             {
                 switch (func)
@@ -139,6 +180,9 @@ namespace Number_Recognition
                         return Math.Tanh(val);
                     case SQUASH_FUNC.SIGMOID:
                         return (1 / (1 + Math.Exp(-val)));
+
+                    case SQUASH_FUNC.RELU:
+                        return Math.Max(0.0, val);
                     default:
                         return Math.Tanh(val);
                 }
@@ -151,7 +195,10 @@ namespace Number_Recognition
                     case SQUASH_FUNC.TANH:
                         return (1 - Math.Tanh(val));
                     case SQUASH_FUNC.SIGMOID:
-                        return (squash(func, val) * (1 - squash(func, val)));
+                        return val * (1 - val);//(squash(func, val) * (1 - squash(func, val)));
+                    case SQUASH_FUNC.RELU:
+                        //if (val == 0) throw new Exception();
+                        return (val <= 0.0) ? 0 : 1; 
                     default:
                         return (1 - Math.Tanh(val));
                 }
@@ -186,6 +233,14 @@ namespace Number_Recognition
                 forward_propagation_done = false;
                 learning_rate = learn_rate;
             }
+
+
+            public void reset_value()
+            {
+                Random random = new Random();
+                weigths.Map(x => random.NextDouble());
+                bias = random.NextDouble();
+            }
             public double foward_propagate(Vector<double> inputs)
             {
                 forward_propagation_done = true;
@@ -218,7 +273,7 @@ namespace Number_Recognition
 
         private class Layer
         {
-            Neuron[] neurons;
+            public Neuron[] neurons { get; private set; }
             Vector<double> inputs;
             Vector<double> outputs;
             int out_size;
